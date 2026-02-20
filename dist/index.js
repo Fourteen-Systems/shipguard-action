@@ -30972,10 +30972,9 @@ async function runScan(opts) {
       ...userConfig?.ci,
       ...opts.configOverrides?.ci
     },
-    rules: {
+    rules: opts.configOverrides?.rules ?? {
       ...DEFAULT_CONFIG.rules,
-      ...userConfig?.rules,
-      ...opts.configOverrides?.rules
+      ...userConfig?.rules
     }
   };
   if (opts.additionalExclude?.length) {
