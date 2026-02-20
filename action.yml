@@ -1,0 +1,52 @@
+name: "Shipguard"
+description: "CI guardrail that blocks unprotected mutation routes in Next.js SaaS"
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  fail-on:
+    description: "Minimum severity to fail: low, med, high, critical"
+    default: "critical"
+    required: false
+  min-confidence:
+    description: "Minimum confidence to include: low, med, high"
+    default: "high"
+    required: false
+  min-score:
+    description: "Minimum passing score (0-100)"
+    default: "70"
+    required: false
+  baseline:
+    description: "Path to baseline file for regression detection"
+    required: false
+  max-new-critical:
+    description: "Maximum new critical findings allowed"
+    default: "0"
+    required: false
+  max-new-high:
+    description: "Maximum new high findings allowed (baseline mode)"
+    required: false
+  comment:
+    description: "Post a PR comment with findings summary"
+    default: "true"
+    required: false
+  annotations:
+    description: "Add inline file annotations for findings"
+    default: "true"
+    required: false
+  working-directory:
+    description: "Directory to run Shipguard in (for monorepos)"
+    required: false
+
+outputs:
+  score:
+    description: "Shipguard score (0-100)"
+  findings:
+    description: "Total number of findings"
+  result:
+    description: "PASS, WARN, or FAIL"
+
+runs:
+  using: "node20"
+  main: "dist/index.js"
