@@ -31067,6 +31067,7 @@ async function run4() {
     const shouldComment = core.getInput("comment") !== "false";
     const shouldAnnotate = core.getInput("annotations") !== "false";
     const gatedFindings = result.findings.filter((f) => confidenceLevel(f.confidence) >= confidenceLevel(minConfidence));
+    const gatedScore = computeScore(gatedFindings);
     let diff;
     if (baselinePath) {
       const baseline = loadBaseline(baselinePath);
@@ -31078,14 +31079,14 @@ async function run4() {
       createAnnotations(gatedFindings);
     }
     if (shouldComment) {
-      await postComment(result, gatedFindings, diff);
+      await postComment(result, gatedFindings, gatedScore, diff);
     }
-    await writeSummary(result, diff);
-    const status = scoreStatus(result.score);
-    core.setOutput("score", result.score);
-    core.setOutput("findings", result.findings.length);
+    await writeSummary(gatedScore, gatedFindings, diff);
+    const status = scoreStatus(gatedScore);
+    core.setOutput("score", gatedScore);
+    core.setOutput("findings", gatedFindings.length);
     core.setOutput("result", status);
-    const failures = evaluateGates(result, gatedFindings, diff, {
+    const failures = evaluateGates(gatedScore, gatedFindings, diff, {
       minScore,
       failOn,
       maxNewCritical,
@@ -31111,7 +31112,7 @@ function createAnnotations(findings) {
     }
   }
 }
-async function postComment(result, gatedFindings, diff) {
+async function postComment(result, gatedFindings, gatedScore, diff) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     core.warning("GITHUB_TOKEN not available \u2014 skipping PR comment");
@@ -31124,7 +31125,7 @@ async function postComment(result, gatedFindings, diff) {
   }
   const octokit = github.getOctokit(token);
   const prNumber = context2.payload.pull_request.number;
-  const body = buildCommentBody(result, gatedFindings, diff);
+  const body = buildCommentBody(result, gatedFindings, gatedScore, diff);
   const { data: comments } = await octokit.rest.issues.listComments({
     ...context2.repo,
     issue_number: prNumber,
@@ -31145,13 +31146,13 @@ async function postComment(result, gatedFindings, diff) {
     });
   }
 }
-function buildCommentBody(result, gatedFindings, diff) {
+function buildCommentBody(result, gatedFindings, gatedScore, diff) {
   const lines = [COMMENT_MARKER];
-  const status = scoreStatus(result.score);
+  const status = scoreStatus(gatedScore);
   const icon = status === "PASS" ? "\u2705" : status === "WARN" ? "\u26A0\uFE0F" : "\u{1F6A8}";
   lines.push(`## ${icon} Shipguard`);
   lines.push("");
-  lines.push(`**Score: ${result.score} ${status}**`);
+  lines.push(`**Score: ${gatedScore} ${status}**`);
   const detected = buildDetectedList(result);
   lines.push(`Detected: ${detected.join(" \xB7 ")}`);
   lines.push("");
@@ -31201,9 +31202,9 @@ function buildCommentBody(result, gatedFindings, diff) {
   lines.push(`*Shipguard ${result.shipguardVersion}*`);
   return lines.join("\n");
 }
-async function writeSummary(result, diff) {
-  const status = scoreStatus(result.score);
-  core.summary.addHeading("Shipguard Report").addRaw(`**Score: ${result.score} ${status}** | Findings: ${result.findings.length}`).addEOL();
+async function writeSummary(gatedScore, gatedFindings, diff) {
+  const status = scoreStatus(gatedScore);
+  core.summary.addHeading("Shipguard Report").addRaw(`**Score: ${gatedScore} ${status}** | Findings: ${gatedFindings.length}`).addEOL();
   if (diff) {
     const delta = diff.scoreDelta >= 0 ? `+${diff.scoreDelta}` : `${diff.scoreDelta}`;
     core.summary.addRaw(`Baseline delta: ${delta} (${diff.newFindings.length} new, ${diff.resolvedKeys.length} resolved)`);
@@ -31211,10 +31212,10 @@ async function writeSummary(result, diff) {
   }
   await core.summary.write();
 }
-function evaluateGates(result, gatedFindings, diff, config) {
+function evaluateGates(gatedScore, gatedFindings, diff, config) {
   const failures = [];
-  if (result.score < config.minScore) {
-    failures.push(`Score ${result.score} below minimum ${config.minScore}`);
+  if (gatedScore < config.minScore) {
+    failures.push(`Score ${gatedScore} below minimum ${config.minScore}`);
   }
   const failingSeverities = gatedFindings.filter((f) => severityLevel(f.severity) >= severityLevel(config.failOn));
   if (failingSeverities.length > 0) {
