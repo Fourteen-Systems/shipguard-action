@@ -1,4 +1,4 @@
-name: "Shipguard"
+name: "Shipguard — Next.js Security Scanner"
 description: "CI guardrail that blocks unprotected mutation routes in Next.js SaaS"
 branding:
   icon: "shield"
