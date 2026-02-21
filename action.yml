@@ -1,5 +1,5 @@
 name: "Shipguard — Next.js Security Scanner"
-description: "CI guardrail that blocks unprotected mutation routes in Next.js SaaS"
+description: "Static analysis guardrail for Next.js SaaS — flags unprotected routes, missing rate limiting, and SSRF surfaces"
 branding:
   icon: "shield"
   color: "blue"
